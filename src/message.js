@@ -2,11 +2,11 @@ class Message {
     constructor(type, data) {
         this.type = type;
         this.data = data;
+        this.onError = (err) => {
+
+        }
     }
 
-    onError(err) {
-        cb(err);
-    }
 }
 
 Message.TYPE = {

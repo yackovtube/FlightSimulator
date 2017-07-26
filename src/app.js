@@ -1,21 +1,27 @@
 const Airport = require('./airport');
+const Simulator = require('./simulator');
 
+//add epress
+//add socet.io
 
 class App {
 
     constructor() {
         this.airport = new Airport;
+        this.simulator = new Simulator;
     }
 
     run() {
 
-        setInterval(()=>{
+        this.simulator.start((e) => {
 
-            this.airport.addPlane((error) => {
-                console.error('Unable to add plane to airport');
-            });
+            if (e.type == Simulator.EVENT.ADD_PLANE) {
 
-        }, 2000);
+                this.airport.addPlane((error) => {
+                    console.error('Unable to add plane to airport');
+                });
+            }
+        });
 
     }
 }

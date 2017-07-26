@@ -1,50 +1,56 @@
+const _ = require('lodash');
 const Runway = require('./runway');
 const Plane = require('./plane')
 const Message = require('./message');
 
+const TERMINAL_WAIT_DELAY_MAX = 10000;
+const TERMINAL_WAIT_DELAY_MIN = 0;
+
 class Airport {
 
+    //our constructor we start the runways 
     constructor() {
 
         this.messages = Array();
 
         this.interval = null;
 
-        this.runwaies = {};
+        this.runways = {};
 
-        this.runwaies[1] = new Runway(1, Runway.TYPE.IN_BOUND);
-        this.runwaies[2] = new Runway(2, Runway.TYPE.IN_BOUND);
-        this.runwaies[3] = new Runway(3, Runway.TYPE.IN_BOUND);
-        this.runwaies[4] = new Runway(4, Runway.TYPE.RUNWAY);
-        this.runwaies[5] = new Runway(5, Runway.TYPE.POST_LANDING);
-        this.runwaies[6] = new Runway(6, Runway.TYPE.TERMINAL_ENTRANCE);
-        this.runwaies[7] = new Runway(7, Runway.TYPE.TERMINAL_ENTRANCE);
-        this.runwaies[8] = new Runway(8, Runway.TYPE.PRE_TAKEOFF);
+        this.runways[1] = new Runway(1, Runway.TYPE.IN_BOUND);
+        this.runways[2] = new Runway(2, Runway.TYPE.IN_BOUND);
+        this.runways[3] = new Runway(3, Runway.TYPE.IN_BOUND);
+        this.runways[4] = new Runway(4, Runway.TYPE.RUNWAY);
+        this.runways[5] = new Runway(5, Runway.TYPE.POST_LANDING);
+        this.runways[6] = new Runway(6, Runway.TYPE.TERMINAL_ENTRANCE);
+        this.runways[7] = new Runway(7, Runway.TYPE.TERMINAL_ENTRANCE);
+        this.runways[8] = new Runway(8, Runway.TYPE.PRE_TAKEOFF);
 
         //we create a connect graph 
-        this.runwaies[1].conectedTo.push(this.runwaies[2]);
-        this.runwaies[2].conectedTo.push(this.runwaies[3]);
-        this.runwaies[3].conectedTo.push(this.runwaies[4]);
-        this.runwaies[4].conectedTo.push(this.runwaies[5]);
-        this.runwaies[5].conectedTo.push(this.runwaies[6], this.runwaies[7]);
-        this.runwaies[6].conectedTo.push(this.runwaies[8]);
-        this.runwaies[7].conectedTo.push(this.runwaies[8]);
-        this.runwaies[8].conectedTo.push(this.runwaies[4]);
+        this.runways[1].conectedTo.push(this.runways[2]);
+        this.runways[2].conectedTo.push(this.runways[3]);
+        this.runways[3].conectedTo.push(this.runways[4]);
+        this.runways[4].conectedTo.push(this.runways[5]);
+        this.runways[5].conectedTo.push(this.runways[6], this.runways[7]);
+        this.runways[6].conectedTo.push(this.runways[8]);
+        this.runways[7].conectedTo.push(this.runways[8]);
+        this.runways[8].conectedTo.push(this.runways[4]);
 
 
 
 
+        //start terminal array 
         this.terminal = new Array;
+        this.exitTerminalRunways = [this.runways[6], this.runways[7]]
 
         this._onInit();
     }
 
     _onInit() {
-
         this.start();
-
     }
 
+    //take care of all the messages
     start() {
         if (!this.interval)
             this.interval = setInterval(() => {
@@ -70,24 +76,51 @@ class Airport {
                         case Message.TYPE.TAKE_OFF:
                             this._takeOffAction(message)
                             break;
-
+                        case Message.TYPE.EXIT_TERMINAL:
+                            this._exitFromTerminalAction(message)
+                            break;
                     }
 
                 }
 
                 this.messages = new Array;
+                let now = Date.now();
 
 
-                //trminal logic (chack planes that need to tack of)
-                for (let i in this.terminal) {
+                //trminal logic (chack planes that need to take of)
+                let canExitTerminal = true;
+                for (let i in this.exitTerminalRunways) {
+                    let runway = this.exitTerminalRunways[i];
+                    if (runway.plane && runway.plane.prosses == Plane.PROSSES_TYPE.TAKEOFF) {
+                        canExitTerminal = false;
+                        break;
+                    }
+                }
 
+                if (canExitTerminal) {
+                    for (let i in this.terminal) {
+                        let plane = this.terminal[i].plane;
+                        let delay = this.terminal[i].delay;
+                        let exitTime = plane.prossesStartTime.getTime() + delay;
+                        if (now < exitTime)
+                            this.messages.push(new Message(Message.TYPE.EXIT_TERMINAL, plane));
+
+                    }
+                }
+                let freeRunwaires = _.clone(this.runways);
+
+                if (this.runways[8].plane && this.runways[3].plane) {
+                    _.remove(freeRunwaires, function (runway) {
+                        return runways.ID == runway[3].ID;
+                    })
                 }
 
 
                 //run way logic
-                for (let ID in this.runwaies) {
-                    let fromRunway = this.runwaies[ID];
+                for (let ID in freeRunwaires) {
+                    let fromRunway = freeRunwaires[ID];
 
+                    //if we have a plane in the runway
                     if (fromRunway.plane) {
 
                         if (fromRunway.type == Runway.TYPE.TERMINAL_ENTRANCE && fromRunway.plane.prosses == Plane.PROSSES_TYPE.LANDING) {
@@ -95,7 +128,8 @@ class Airport {
                         }
                         else if (fromRunway.type == Runway.TYPE.RUNWAY && fromRunway.plane.prosses == Plane.PROSSES_TYPE.TAKEOFF) {
                             this.messages.push(new Message(Message.TYPE.TAKE_OFF, fromRunway));
-                        } else {
+                        }
+                        else {
 
                             for (let i in fromRunway.conectedTo) {
                                 let toRunway = fromRunway.conectedTo[i];
@@ -105,9 +139,9 @@ class Airport {
                                         from: fromRunway,
                                         to: toRunway
                                     }));
-
+                                    break;
                                 }
-                                break;
+
                             }
                         }
 
@@ -127,8 +161,29 @@ class Airport {
         }
     }
 
+    _exitFromTerminalAction(message) {
+        let plane = message.data;
 
-    _takeOffAction(message){
+        for (let i in this.exitTerminalRunways) {
+            let runway = this.exitTerminalRunways[i];
+
+            if (!runway.plane) {
+                runway.plane = plane;
+
+                _.remove(this.terminal, function (p) {
+                    return plane.ID == p.ID;
+                })
+                console.log('Plane ' + plane.ID + ' is exiting the terminal and moved to runway ' + runway.ID)
+                plane.prosses = Plane.PROSSES_TYPE.TAKEOFF;
+                plane.prossesStartTime = new Date();
+                break;
+            }
+        }
+
+
+    }
+
+    _takeOffAction(message) {
         let runway = message.data;
         console.log('plane ' + runway.plane.ID + ' took off from ' + runway.ID);
         runway.plane = null;
@@ -139,10 +194,10 @@ class Airport {
         runway.plane.prosses = Plane.PROSSES_TYPE.IN_TERMINAL;
         runway.plane.prossesStartTime = new Date();
         console.log('plane ' + runway.plane.ID + ' moved from ' + runway.ID + ' to terminal')
-        
+
         this.terminal.push({
             plane: runway.plane,
-            delay: Math.floor((Math.random() * 10) + 10000)
+            delay: Math.floor((Math.random() * TERMINAL_WAIT_DELAY_MAX) + TERMINAL_WAIT_DELAY_MIN)
         });
 
         runway.plane = null;
@@ -165,7 +220,7 @@ class Airport {
     //the function to resolve add plane massege
     _addPlaneAction(message) {
 
-        let runway = this.runwaies[1];
+        let runway = this.runways[1];
 
         if (runway.plane) {
             message.onError(new Error('unable to exption'));
