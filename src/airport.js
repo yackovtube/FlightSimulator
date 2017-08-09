@@ -231,6 +231,10 @@ class Airport {
         }
     }
 
+    initRunway(){
+        
+    }
+
     //makes a request andd adds the request to our array called messages
     addPlane(cb) {
         this.messages.push(new Message(Message.TYPE.ADD_PLANE, new Plane(Plane.MISSION_TYPE.LANDING)))
