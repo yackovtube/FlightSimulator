@@ -91,7 +91,7 @@ class Airport {
                 let canExitTerminal = true;
                 for (let i in this.exitTerminalRunways) {
                     let runway = this.exitTerminalRunways[i];
-                    if (runway.plane && runway.plane.prosses == Plane.PROSSES_TYPE.TAKEOFF) {
+                    if (runway.plane && runway.plane.prosses == Plane.MISSION_TYPE.TAKEOFF) {
                         canExitTerminal = false;
                         break;
                     }
@@ -123,10 +123,10 @@ class Airport {
                     //if we have a plane in the runway
                     if (fromRunway.plane) {
 
-                        if (fromRunway.type == Runway.TYPE.TERMINAL_ENTRANCE && fromRunway.plane.prosses == Plane.PROSSES_TYPE.LANDING) {
+                        if (fromRunway.type == Runway.TYPE.TERMINAL_ENTRANCE && fromRunway.plane.prosses == Plane.MISSION_TYPE.LANDING) {
                             this.messages.push(new Message(Message.TYPE.MOVE_TO_TERMINAL, fromRunway));
                         }
-                        else if (fromRunway.type == Runway.TYPE.RUNWAY && fromRunway.plane.prosses == Plane.PROSSES_TYPE.TAKEOFF) {
+                        else if (fromRunway.type == Runway.TYPE.RUNWAY && fromRunway.plane.prosses == Plane.MISSION_TYPE.TAKEOFF) {
                             this.messages.push(new Message(Message.TYPE.TAKE_OFF, fromRunway));
                         }
                         else {
@@ -174,7 +174,7 @@ class Airport {
                     return plane.ID == p.ID;
                 })
                 console.log('Plane ' + plane.ID + ' is exiting the terminal and moved to runway ' + runway.ID)
-                plane.prosses = Plane.PROSSES_TYPE.TAKEOFF;
+                plane.prosses = Plane.MISSION_TYPE.TAKEOFF;
                 plane.prossesStartTime = new Date();
                 break;
             }
@@ -191,7 +191,7 @@ class Airport {
 
     _moveToTerminalAction(message) {
         let runway = message.data;
-        runway.plane.prosses = Plane.PROSSES_TYPE.IN_TERMINAL;
+        runway.plane.prosses = Plane.MISSION_TYPE.IN_TERMINAL;
         runway.plane.prossesStartTime = new Date();
         console.log('plane ' + runway.plane.ID + ' moved from ' + runway.ID + ' to terminal')
 
@@ -233,7 +233,7 @@ class Airport {
 
     //makes a request andd adds the request to our array called messages
     addPlane(cb) {
-        this.messages.push(new Message(Message.TYPE.ADD_PLANE, new Plane(Plane.PROSSES_TYPE.LANDING)))
+        this.messages.push(new Message(Message.TYPE.ADD_PLANE, new Plane(Plane.MISSION_TYPE.LANDING)))
     }
 
     careateDesaster(type, ranwayNum) {
