@@ -31,9 +31,10 @@ class RunwayRepository {
     //         cb(err, doc);
     //     });
     // }
+
+
     //{new true} = return updated document
     update(id, updateData) {
-
         return new Promise((resolve, reject) => {
             Runway.findByIdAndUpdate(id, { $set: updateData }, { new: true }, (err, doc) => {
                 if(err){

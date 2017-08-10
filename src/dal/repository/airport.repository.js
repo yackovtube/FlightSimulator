@@ -8,17 +8,31 @@ class AirportRepository {
     findAll() {
         return new Promise((resolve, reject) => {
 
-            Airport.find({}, (err, docs) => {
-                if(err){
-                    reject(err);
-                }
-                else{
-                    resolve(docs);
-                }
-            })
+            Airport.find({})
+                .populate({ path: 'runways', populate: { path: 'runways' } })
+                .populate({ path: 'planes', populate: { path: 'planes' } })
+                .exec((err, docs) => {
+                    if (err) {
+                        reject(err);
+                    }
+                    else {
+                        resolve(docs);
+                    }
+                })
         })
     }
 
+
+    // User.
+    //   findOne({ name: 'Val' }).
+    //   populate({
+    //     path: 'friends',
+    //     // Get friends of friends - populate the 'friends' array for every friend
+    //     populate: { path: 'friends' }
+    //   })
+    // .exec(() =>{
+
+    // });
 
     //create the airport using promise
     create() {

@@ -9,39 +9,56 @@ const TERMINAL_WAIT_DELAY_MIN = 0;
 class Airport {
 
     //our constructor we start the runways 
-    constructor() {
+    constructor(airportData) {
 
+        this.airportData = airportData;
         this.messages = Array();
 
         this.interval = null;
 
-        this.runways = {};
+        //helping data stracher for runways
+        this.runways = {}// airportData.runways;
+        this.runways[1] = this.airportData.runways[0];
+        this.runways[2] = this.airportData.runways[1];
+        this.runways[3] = this.airportData.runways[2];
+        this.runways[4] = this.airportData.runways[3];
+        this.runways[5] = this.airportData.runways[4];
+        this.runways[6] = this.airportData.runways[5];
+        this.runways[7] = this.airportData.runways[6];
+        this.runways[8] = this.airportData.runways[7];
 
-        this.runways[1] = new Runway(1, Runway.TYPE.IN_BOUND);
-        this.runways[2] = new Runway(2, Runway.TYPE.IN_BOUND);
-        this.runways[3] = new Runway(3, Runway.TYPE.IN_BOUND);
-        this.runways[4] = new Runway(4, Runway.TYPE.RUNWAY);
-        this.runways[5] = new Runway(5, Runway.TYPE.POST_LANDING);
-        this.runways[6] = new Runway(6, Runway.TYPE.TERMINAL_ENTRANCE);
-        this.runways[7] = new Runway(7, Runway.TYPE.TERMINAL_ENTRANCE);
-        this.runways[8] = new Runway(8, Runway.TYPE.PRE_TAKEOFF);
+        this.exitTerminalRunways = [this.runways[6], this.runways[7]];
+        //helping data stracher for runways - END
 
         //we create a connect graph 
-        this.runways[1].conectedTo.push(this.runways[2]);
-        this.runways[2].conectedTo.push(this.runways[3]);
-        this.runways[3].conectedTo.push(this.runways[4]);
-        this.runways[4].conectedTo.push(this.runways[5]);
-        this.runways[5].conectedTo.push(this.runways[6], this.runways[7]);
-        this.runways[6].conectedTo.push(this.runways[8]);
-        this.runways[7].conectedTo.push(this.runways[8]);
-        this.runways[8].conectedTo.push(this.runways[4]);
+        //populate graph using map and lodash to go over each runway.connectdTo ids and pull runway model  
+        let runwaysArray = this.airportData.runways.toObject();
+        for (let i in runwaysArray) {
+            let runway = runwaysArray[i];
 
+            // Note: Populate connectedTo with map
+            // runway.conectedTo = runway.conectedTo.map((runwayId) => {
+            //     return _.find(airportData.runways, function (o) { return o._id === runwayId; });
+            // });
+
+            let populateConnectedTo = [];
+            let conectedToArrayId = runway.conectedTo.toObject();
+            for (let j in conectedToArrayId) {
+                let runwayId = conectedToArrayId[j];
+                populateConnectedTo.push(_.find(airportData.runways, function (o) { 
+                    return o._id === runwayId; 
+                }));
+            }
+            runway.conectedTo = populateConnectedTo;
+        }
 
 
 
         //start terminal array 
-        this.terminal = new Array;
-        this.exitTerminalRunways = [this.runways[6], this.runways[7]]
+        this.terminal = this.airportData.terminal.toObject().map((planeId) => {
+            _.find(airportData.planes, (o) => { return o._id === planeId });
+        });
+
 
         this._onInit();
     }
@@ -231,8 +248,8 @@ class Airport {
         }
     }
 
-    initRunway(){
-        
+    initRunway() {
+
     }
 
     //makes a request andd adds the request to our array called messages
