@@ -77,7 +77,7 @@ class AirportRepository {
 
     //Add plane to the airport database
     addPlane(id, plane) {
-        return new Promiose((resolve, reject) => {
+        return new Promise((resolve, reject) => {
 
             Airport.update(
                 { _id: id },//where

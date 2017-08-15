@@ -14,6 +14,8 @@ class Airport {
     //our constructor we start the runways 
     constructor(airportData) {
 
+        this.inProsses = false;
+
         this.airportData = airportData;
         this.messages = Array();
 
@@ -70,107 +72,144 @@ class Airport {
         this.start();
     }
 
+    handelMessages(messages) {
+        return new Promise((resolve, reject) => {
+
+            if (messages.length) {
+                let message = messages.pop();
+                let handledActionPromise;
+
+                switch (message.type) {
+                    case Message.TYPE.ADD_PLANE:
+                        handledActionPromise = this._addPlaneAction(message)
+                            .catch((err) => {
+                                console.error('Unable to add plaine to the ariport');
+                                return null; //resolve promise
+                            });
+                        break;
+                    // case Message.TYPE.MOVE:
+                    //     handledActionPromise = this._moveAction(message);
+                    //     break;
+                    // case Message.TYPE.MOVE_TO_TERMINAL:
+                    //     handledActionPromise = this._moveToTerminalAction(message)
+                    //     break;
+                    // case Message.TYPE.TAKE_OFF:
+                    //     handledActionPromise = this._takeOffAction(message)
+                    //     break;
+                    // case Message.TYPE.EXIT_TERMINAL:
+                    //     handledActionPromise = this._exitFromTerminalAction(message)
+                    //     break;
+                }
+
+                if (!handledActionPromise) {
+                    console.warn('Unable to resolve action type ' + message.type, message)
+                    resolve(this.handelMessages(messages));
+                }
+                else {
+                    handledActionPromise
+                        .then(() => {
+                            resolve(this.handelMessages(messages));
+                        })
+                }
+
+            }
+            //Recuersion end
+            else {
+                resolve();
+            }
+        })
+
+
+    }
+
     //take care of all the messages
     start() {
         if (!this.interval)
             this.interval = setInterval(() => {
 
+                //semaphore
+                if(this.inProsses){
+                    return;
+                }
+
                 if (this.messages.length === 0) {
                     return;
                 }
 
-                for (let index in this.messages) {
+                this.inProsses = true;
+                this.handelMessages(this.messages)
+                    .then(() => {
 
-                    let message = this.messages[index];
+                        this.inProsses = false;
 
-                    switch (message.type) {
-                        case Message.TYPE.ADD_PLANE:
-                            this._addPlaneAction(message);
-                            break;
-                        case Message.TYPE.MOVE:
-                            this._moveAction(message);
-                            break;
-                        case Message.TYPE.MOVE_TO_TERMINAL:
-                            this._moveToTerminalAction(message)
-                            break;
-                        case Message.TYPE.TAKE_OFF:
-                            this._takeOffAction(message)
-                            break;
-                        case Message.TYPE.EXIT_TERMINAL:
-                            this._exitFromTerminalAction(message)
-                            break;
-                    }
-
-                }
-
-                this.messages = new Array;
-                let now = Date.now();
+                        this.messages = new Array;
+                        let now = Date.now();
 
 
-                //trminal logic (chack planes that need to take of)
-                let canExitTerminal = true;
-                for (let i in this.exitTerminalRunways) {
-                    let runway = this.exitTerminalRunways[i];
-                    if (runway.plane && runway.plane.prosses == Plane.MISSION_TYPE.TAKEOFF) {
-                        canExitTerminal = false;
-                        break;
-                    }
-                }
-
-                if (canExitTerminal) {
-                    for (let i in this.terminal) {
-                        let plane = this.terminal[i].plane;
-                        let delay = this.terminal[i].delay;
-                        let exitTime = plane.prossesStartTime.getTime() + delay;
-                        if (now < exitTime)
-                            this.messages.push(new Message(Message.TYPE.EXIT_TERMINAL, plane));
-
-                    }
-                }
-                let freeRunwaires = _.clone(this.runways);
-
-                if (this.runways[8].plane && this.runways[3].plane) {
-                    _.remove(freeRunwaires, function (runway) {
-                        return runways.ID == runway[3].ID;
-                    })
-                }
-
-
-                //run way logic
-                for (let ID in freeRunwaires) {
-                    let fromRunway = freeRunwaires[ID];
-
-                    //if we have a plane in the runway
-                    if (fromRunway.plane) {
-
-                        if (fromRunway.type == Runway.TYPE.TERMINAL_ENTRANCE && fromRunway.plane.prosses == Plane.MISSION_TYPE.LANDING) {
-                            this.messages.push(new Message(Message.TYPE.MOVE_TO_TERMINAL, fromRunway));
-                        }
-                        else if (fromRunway.type == Runway.TYPE.RUNWAY && fromRunway.plane.prosses == Plane.MISSION_TYPE.TAKEOFF) {
-                            this.messages.push(new Message(Message.TYPE.TAKE_OFF, fromRunway));
-                        }
-                        else {
-
-                            for (let i in fromRunway.conectedTo) {
-                                let toRunway = fromRunway.conectedTo[i];
-                                if (!toRunway.plane) {
-
-                                    this.messages.push(new Message(Message.TYPE.MOVE, {
-                                        from: fromRunway,
-                                        to: toRunway
-                                    }));
-                                    break;
-                                }
-
+                        //trminal logic (chack planes that need to take of)
+                        let canExitTerminal = true;
+                        for (let i in this.exitTerminalRunways) {
+                            let runway = this.exitTerminalRunways[i];
+                            if (runway.plane && runway.plane.prosses == Plane.MISSION_TYPE.TAKEOFF) {
+                                canExitTerminal = false;
+                                break;
                             }
                         }
 
+                        if (canExitTerminal) {
+                            for (let i in this.terminal) {
+                                let plane = this.terminal[i].plane;
+                                let delay = this.terminal[i].delay;
+                                let exitTime = plane.prossesStartTime.getTime() + delay;
+                                if (now < exitTime)
+                                    this.messages.push(new Message(Message.TYPE.EXIT_TERMINAL, plane));
 
-                    }
+                            }
+                        }
+                        let freeRunwaires = _.clone(this.runways);
 
-                }
+                        if (this.runways[8].plane && this.runways[3].plane) {
+                            _.remove(freeRunwaires, function (runway) {
+                                return runways.ID == runway[3].ID;
+                            })
+                        }
 
 
+                        //run way logic
+                        for (let ID in freeRunwaires) {
+                            let fromRunway = freeRunwaires[ID];
+
+                            //if we have a plane in the runway
+                            if (fromRunway.plane) {
+
+                                if (fromRunway.type == Runway.TYPE.TERMINAL_ENTRANCE && fromRunway.plane.prosses == Plane.MISSION_TYPE.LANDING) {
+                                    this.messages.push(new Message(Message.TYPE.MOVE_TO_TERMINAL, fromRunway));
+                                }
+                                else if (fromRunway.type == Runway.TYPE.RUNWAY && fromRunway.plane.prosses == Plane.MISSION_TYPE.TAKEOFF) {
+                                    this.messages.push(new Message(Message.TYPE.TAKE_OFF, fromRunway));
+                                }
+                                else {
+
+                                    for (let i in fromRunway.conectedTo) {
+                                        let toRunway = fromRunway.conectedTo[i];
+                                        if (!toRunway.plane) {
+
+                                            this.messages.push(new Message(Message.TYPE.MOVE, {
+                                                from: fromRunway,
+                                                to: toRunway
+                                            }));
+                                            break;
+                                        }
+
+                                    }
+                                }
+
+
+                            }
+
+                        }
+
+                    })
             }, 1000);
     }
 
@@ -249,9 +288,12 @@ class Airport {
             }
             else {
 
+                let _plane;
+
                 //create plane 
                 PlaneRepository.create(message.data)
                     .then((plane) => {
+                        _plane = plane
                         console.log('Plane ' + plane._id + ' was created');
 
                         //update runway
@@ -263,15 +305,14 @@ class Airport {
                     })
                     .then(() => {
                         //update curent instances
-                        runway.plane = plane._id;
-                        this.airportData.planes.push(plane);
+                        runway.plane = _plane._id;
+                        this.airportData.planes.push(_plane);
 
                         resolve();
                     })
-                    .catch((err)=>{
+                    .catch((err) => {
                         reject(err);
                     })
-
 
             }
         });

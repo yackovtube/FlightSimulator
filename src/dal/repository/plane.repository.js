@@ -4,14 +4,14 @@ class PlaneRepository {
 
     create(data) {
 
-        return promise((resolve, reject) => {
+        return new Promise((resolve, reject) => {
             let plane = new Plane({ mission: data.mission, missionStartTime: data.missionStartTime });
             plane.save((err, doc) => {
                 if (err) {
                     reject(err);
                 }
                 else {
-                    resovle(doc);
+                    resolve(doc);
                 }
             });
 
