@@ -2,6 +2,9 @@ const _ = require('lodash');
 const Runway = require('./runway');
 const Plane = require('./plane')
 const Message = require('./message');
+const RunwayRepository = require('./dal/repository/runway.repository');
+const AirportRepository = require('./dal/repository/airport.repository');
+const PlaneRepository = require('./dal/repository/plane.repository');
 
 const TERMINAL_WAIT_DELAY_MAX = 10000;
 const TERMINAL_WAIT_DELAY_MIN = 0;
@@ -45,8 +48,8 @@ class Airport {
             let conectedToArrayId = runway.conectedTo.toObject();
             for (let j in conectedToArrayId) {
                 let runwayId = conectedToArrayId[j];
-                populateConnectedTo.push(_.find(airportData.runways, function (o) { 
-                    return o._id === runwayId; 
+                populateConnectedTo.push(_.find(airportData.runways, function (o) {
+                    return o._id === runwayId;
                 }));
             }
             runway.conectedTo = populateConnectedTo;
@@ -237,15 +240,41 @@ class Airport {
     //the function to resolve add plane massege
     _addPlaneAction(message) {
 
-        let runway = this.runways[1];
+        return new Promise((resolve, reject) => {
 
-        if (runway.plane) {
-            message.onError(new Error('unable to exption'));
-        }
-        else {
-            runway.plane = message.data;
-            console.log('added plane ' + runway.plane.ID + ' to runway 1');
-        }
+            let runway = this.runways[1];
+
+            if (runway.plane) {
+                reject(new Error('unable to exption'));
+            }
+            else {
+
+                //create plane 
+                PlaneRepository.create(message.data)
+                    .then((plane) => {
+                        console.log('Plane ' + plane._id + ' was created');
+
+                        //update runway
+                        return Promise.all([
+                            RunwayRepository.update(runway._id, { plane: plane._id }),
+                            AirportRepository.addPlane(this.airportData._id, plane)
+                        ])
+
+                    })
+                    .then(() => {
+                        //update curent instances
+                        runway.plane = plane._id;
+                        this.airportData.planes.push(plane);
+
+                        resolve();
+                    })
+                    .catch((err)=>{
+                        reject(err);
+                    })
+
+
+            }
+        });
     }
 
     initRunway() {

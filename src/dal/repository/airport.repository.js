@@ -22,18 +22,6 @@ class AirportRepository {
         })
     }
 
-
-    // User.
-    //   findOne({ name: 'Val' }).
-    //   populate({
-    //     path: 'friends',
-    //     // Get friends of friends - populate the 'friends' array for every friend
-    //     populate: { path: 'friends' }
-    //   })
-    // .exec(() =>{
-
-    // });
-
     //create the airport using promise
     create() {
         //step 1: create runways
@@ -85,6 +73,26 @@ class AirportRepository {
                 console.log(err);
             })
 
+    }
+
+    //Add plane to the airport database
+    addPlane(id, plane) {
+        return new Promiose((resolve, reject) => {
+
+            Airport.update(
+                { _id: id },//where
+                { $push: { planes: plane } },
+                (err, airport) => {
+                    if (err) {
+                        reject(err);
+                    }
+                    else{
+                        resolve();
+                    }
+
+                }
+            );
+        })
     }
 
 };

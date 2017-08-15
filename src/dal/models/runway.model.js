@@ -9,7 +9,7 @@ const runwaySchema = mongoose.Schema({
     //type of runway
     type: Number,
     //plane if any
-    plane: [{ type:Schema.Types.ObjectId, ref: 'Plane'}]
+    plane: { type:Schema.Types.ObjectId, ref: 'Plane'}
 });
 
 const Runway = mongoose.model('Runway', runwaySchema);
