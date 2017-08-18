@@ -43,7 +43,7 @@ class Airport {
 
             // Note: Populate connectedTo with map
             // runway.conectedTo = runway.conectedTo.map((runwayId) => {
-            //     return _.find(airportData.runways, function (o) { return o._id === runwayId; });
+            //     return _.find(airportData.runways, function (o) { return o._id.equals(runwayId); });
             // });
 
             let populateConnectedTo = [];
@@ -51,7 +51,7 @@ class Airport {
             for (let j in conectedToArrayId) {
                 let runwayId = conectedToArrayId[j];
                 populateConnectedTo.push(_.find(airportData.runways, function (o) {
-                    return o._id === runwayId;
+                    return o._id.equals(runwayId);
                 }));
             }
             runway.conectedTo = populateConnectedTo;
@@ -72,6 +72,7 @@ class Airport {
         this.start();
     }
 
+    //recurecive message (action q) handleing
     handelMessages(messages) {
         return new Promise((resolve, reject) => {
 
@@ -87,9 +88,13 @@ class Airport {
                                 return null; //resolve promise
                             });
                         break;
-                    // case Message.TYPE.MOVE:
-                    //     handledActionPromise = this._moveAction(message);
-                    //     break;
+                    case Message.TYPE.MOVE:
+                        handledActionPromise = this._moveAction(message)
+                            .catch((err)=>{
+                                console.error('unable to move planes');
+                                return null;
+                            })
+                        break;
                     // case Message.TYPE.MOVE_TO_TERMINAL:
                     //     handledActionPromise = this._moveToTerminalAction(message)
                     //     break;
@@ -128,7 +133,7 @@ class Airport {
             this.interval = setInterval(() => {
 
                 //semaphore
-                if(this.inProsses){
+                if (this.inProsses) {
                     return;
                 }
 
@@ -263,17 +268,34 @@ class Airport {
     }
 
     _moveAction(message) {
+        return new Promise((resolve, reject) => {
 
-        let fromRunway = message.data.from;
-        let toRunway = message.data.to;
-        if (fromRunway.plane && !toRunway.plane) {
-            console.log('plane ' + fromRunway.plane.ID + ' moved from ' + fromRunway.ID + ' to ' + toRunway.ID);
-            toRunway.plane = fromRunway.plane;
-            fromRunway.plane = null;
-        }
-        else {
-            message.onError()
-        }
+
+            let fromRunway = message.data.from;
+            let toRunway = message.data.to;
+            if (fromRunway.plane && !toRunway.plane) {
+                //update DB
+
+                Promise.all([
+                    RunwayRepository.update(toRunway._id, { plane: fromRunway.plane }),
+                    RunwayRepository.update(fromRunway._id, { plane: null }
+                    )])
+                    //update current instance
+                    .then(() => {
+                        console.log('plane ' + fromRunway.plane + ' moved from ' + fromRunway.tag + ' to ' + toRunway.tag);
+                        toRunway.plane = fromRunway.plane;
+                        fromRunway.plane = null;
+                        resolve();
+                    })
+                    .catch((err) => {
+                        reject(err);
+                    })
+
+            }
+            else {
+                reject(new Error('invalid message unable to move plane'));
+            }
+        })
     }
 
     //the function to resolve add plane massege
