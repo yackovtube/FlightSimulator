@@ -18,5 +18,18 @@ class PlaneRepository {
         })
     }
 
+    update(id, updateData) {
+        return new Promise((resolve, reject) => {
+            Plane.findByIdAndUpdate(id, { $set: updateData }, { new: true }, (err, doc) => {
+                if(err){
+                    reject(err);
+                }
+                else{
+                    resolve(doc);
+                }
+            })
+        });
+    }
+
 }
 module.exports = new PlaneRepository(); // singleton

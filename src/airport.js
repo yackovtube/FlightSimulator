@@ -60,9 +60,10 @@ class Airport {
 
 
         //start terminal array 
-        this.terminal = this.airportData.terminal.toObject().map((planeId) => {
-            _.find(airportData.planes, (o) => { return o._id === planeId });
-        });
+        // this.terminal = this.airportData.terminal.toObject().map((planeId) => {
+        //     _.find(airportData.planes, (o) => { return o._id === planeId });
+        // });
+        this.terminal = this.airportData.terminal;
 
 
         this._onInit();
@@ -90,14 +91,18 @@ class Airport {
                         break;
                     case Message.TYPE.MOVE:
                         handledActionPromise = this._moveAction(message)
-                            .catch((err)=>{
+                            .catch((err) => {
                                 console.error('unable to move planes');
                                 return null;
                             })
                         break;
-                    // case Message.TYPE.MOVE_TO_TERMINAL:
-                    //     handledActionPromise = this._moveToTerminalAction(message)
-                    //     break;
+                    case Message.TYPE.MOVE_TO_TERMINAL:
+                        handledActionPromise = this._moveToTerminalAction(message)
+                            .catch((err) => {
+                                console.error('unable to move plane to trminal');
+                                return null;
+                            })
+                        break;
                     // case Message.TYPE.TAKE_OFF:
                     //     handledActionPromise = this._takeOffAction(message)
                     //     break;
@@ -155,17 +160,17 @@ class Airport {
                         let canExitTerminal = true;
                         for (let i in this.exitTerminalRunways) {
                             let runway = this.exitTerminalRunways[i];
-                            if (runway.plane && runway.plane.prosses == Plane.MISSION_TYPE.TAKEOFF) {
+                            if (runway.plane && runway.plane.mission == Plane.MISSION_TYPE.TAKEOFF) {
                                 canExitTerminal = false;
                                 break;
                             }
                         }
 
                         if (canExitTerminal) {
-                            for (let i in this.terminal) {
-                                let plane = this.terminal[i].plane;
+                            for (let i = 0; i < this.terminal.length; ++i) {
+                                let plane = _.find(this.airportData.planes,(o)=>{return o._id.equals(this.terminal[i].plane)});
                                 let delay = this.terminal[i].delay;
-                                let exitTime = plane.prossesStartTime.getTime() + delay;
+                                let exitTime = plane.missionStartTime.getTime() + delay;
                                 if (now < exitTime)
                                     this.messages.push(new Message(Message.TYPE.EXIT_TERMINAL, plane));
 
@@ -187,7 +192,9 @@ class Airport {
                             //if we have a plane in the runway
                             if (fromRunway.plane) {
 
-                                if (fromRunway.type == Runway.TYPE.TERMINAL_ENTRANCE && fromRunway.plane.prosses == Plane.MISSION_TYPE.LANDING) {
+                                let plane = _.find(this.airportData.planes, (o) => { return o._id.equals(fromRunway.plane) });
+
+                                if (fromRunway.type == Runway.TYPE.TERMINAL_ENTRANCE && plane.mission == Plane.MISSION_TYPE.LANDING) {
                                     this.messages.push(new Message(Message.TYPE.MOVE_TO_TERMINAL, fromRunway));
                                 }
                                 else if (fromRunway.type == Runway.TYPE.RUNWAY && fromRunway.plane.prosses == Plane.MISSION_TYPE.TAKEOFF) {
@@ -254,17 +261,34 @@ class Airport {
     }
 
     _moveToTerminalAction(message) {
-        let runway = message.data;
-        runway.plane.prosses = Plane.MISSION_TYPE.IN_TERMINAL;
-        runway.plane.prossesStartTime = new Date();
-        console.log('plane ' + runway.plane.ID + ' moved from ' + runway.ID + ' to terminal')
+        return new Promise((resolve, reject) => {
 
-        this.terminal.push({
-            plane: runway.plane,
-            delay: Math.floor((Math.random() * TERMINAL_WAIT_DELAY_MAX) + TERMINAL_WAIT_DELAY_MIN)
-        });
+            let runway = message.data;
+            let plane = runway.plane;
+            let delay = Math.floor((Math.random() * TERMINAL_WAIT_DELAY_MAX) + TERMINAL_WAIT_DELAY_MIN);
 
-        runway.plane = null;
+            //update database 
+            Promise
+                .all([
+                    PlaneRepository.update(plane, { mission: Plane.MISSION_TYPE.IN_TERMINAL, missionStartTime: new Date() }),
+                    AirportRepository.addPlaneToTerminal(this.airportData._id, plane, delay),
+                    RunwayRepository.update(runway._id, { plane: null })
+                ])
+                //update instance
+                .then(() => {
+                    this.terminal.push({
+                        plane: runway.plane,
+                        delay: delay
+                    });
+                    console.log('plane ' + runway.plane + ' moved from ' + runway.tag + ' to terminal');
+                    runway.plane = null;
+                    resolve();
+
+                })
+                .catch((err) => {
+                    reject(err);
+                });
+        })
     }
 
     _moveAction(message) {
@@ -276,10 +300,11 @@ class Airport {
             if (fromRunway.plane && !toRunway.plane) {
                 //update DB
 
-                Promise.all([
-                    RunwayRepository.update(toRunway._id, { plane: fromRunway.plane }),
-                    RunwayRepository.update(fromRunway._id, { plane: null }
-                    )])
+                Promise
+                    .all([
+                        RunwayRepository.update(toRunway._id, { plane: fromRunway.plane }),
+                        RunwayRepository.update(fromRunway._id, { plane: null }
+                        )])
                     //update current instance
                     .then(() => {
                         console.log('plane ' + fromRunway.plane + ' moved from ' + fromRunway.tag + ' to ' + toRunway.tag);
@@ -346,7 +371,7 @@ class Airport {
 
     //makes a request andd adds the request to our array called messages
     addPlane(cb) {
-        this.messages.push(new Message(Message.TYPE.ADD_PLANE, new Plane(Plane.MISSION_TYPE.LANDING)))
+        this.messages.push(new Message(Message.TYPE.ADD_PLANE, { mission:Plane.MISSION_TYPE.LANDING, missionStartTime: new Date}))
     }
 
     careateDesaster(type, ranwayNum) {

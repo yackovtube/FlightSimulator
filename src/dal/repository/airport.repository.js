@@ -86,7 +86,26 @@ class AirportRepository {
                     if (err) {
                         reject(err);
                     }
-                    else{
+                    else {
+                        resolve();
+                    }
+
+                }
+            );
+        })
+    }
+
+    addPlaneToTerminal(id, plane, delay) {
+        return new Promise((resolve, reject) => {
+
+            Airport.update(
+                { _id: id },//where
+                { $push: { terminal: { plane: plane, delay: delay } } },
+                (err, airport) => {
+                    if (err) {
+                        reject(err);
+                    }
+                    else {
                         resolve();
                     }
 

@@ -7,4 +7,12 @@ const planeSchema = mongoose.Schema({
 
 const Plane = mongoose.model('Plane', planeSchema);
 
+
+Plane.MISSION_TYPE = {
+    LANDING: 0,
+    TAKEOFF: 1,
+    IN_TERMINAL: 2
+}
+
+
 module.exports = Plane;
