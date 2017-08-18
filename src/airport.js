@@ -1,6 +1,6 @@
 const _ = require('lodash');
-const Runway = require('./runway');
-const Plane = require('./plane')
+const Runway = require('./dal/models/runway.model');
+const Plane = require('./dal/models/plane.model');
 const Message = require('./message');
 const RunwayRepository = require('./dal/repository/runway.repository');
 const AirportRepository = require('./dal/repository/airport.repository');
@@ -23,14 +23,14 @@ class Airport {
 
         //helping data stracher for runways
         this.runways = {}// airportData.runways;
-        this.runways[1] = this.airportData.runways[0];
-        this.runways[2] = this.airportData.runways[1];
-        this.runways[3] = this.airportData.runways[2];
-        this.runways[4] = this.airportData.runways[3];
-        this.runways[5] = this.airportData.runways[4];
-        this.runways[6] = this.airportData.runways[5];
-        this.runways[7] = this.airportData.runways[6];
-        this.runways[8] = this.airportData.runways[7];
+        this.runways[1] = _.find(this.airportData.runways, { tag: 1 });
+        this.runways[2] = _.find(this.airportData.runways, { tag: 2 });
+        this.runways[3] = _.find(this.airportData.runways, { tag: 3 });
+        this.runways[4] = _.find(this.airportData.runways, { tag: 4 });
+        this.runways[5] = _.find(this.airportData.runways, { tag: 5 });
+        this.runways[6] = _.find(this.airportData.runways, { tag: 6 });
+        this.runways[7] = _.find(this.airportData.runways, { tag: 7 });
+        this.runways[8] = _.find(this.airportData.runways, { tag: 8 });
 
         this.exitTerminalRunways = [this.runways[6], this.runways[7]];
         //helping data stracher for runways - END
@@ -195,7 +195,7 @@ class Airport {
                                 }
                                 else {
 
-                                    for (let i in fromRunway.conectedTo) {
+                                    for (let i = 0; i < fromRunway.conectedTo.length; ++i) {
                                         let toRunway = fromRunway.conectedTo[i];
                                         if (!toRunway.plane) {
 
