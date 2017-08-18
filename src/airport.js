@@ -103,9 +103,13 @@ class Airport {
                                 return null;
                             })
                         break;
-                    // case Message.TYPE.TAKE_OFF:
-                    //     handledActionPromise = this._takeOffAction(message)
-                    //     break;
+                    case Message.TYPE.TAKE_OFF:
+                        handledActionPromise = this._takeOffAction(message)
+                            .catch((err) => {
+                                console.error('unable to move take off');
+                                return null;
+                            })
+                        break;
                     case Message.TYPE.EXIT_TERMINAL:
                         handledActionPromise = this._exitFromTerminalAction(message)
                             .catch((err) => {
@@ -203,7 +207,7 @@ class Airport {
                                 if (fromRunway.type == Runway.TYPE.TERMINAL_ENTRANCE && plane.mission == Plane.MISSION_TYPE.LANDING) {
                                     this.messages.push(new Message(Message.TYPE.MOVE_TO_TERMINAL, fromRunway));
                                 }
-                                else if (fromRunway.type == Runway.TYPE.RUNWAY && fromRunway.plane.prosses == Plane.MISSION_TYPE.TAKEOFF) {
+                                else if (fromRunway.type == Runway.TYPE.RUNWAY && plane.mission == Plane.MISSION_TYPE.TAKEOFF) {
                                     this.messages.push(new Message(Message.TYPE.TAKE_OFF, fromRunway));
                                 }
                                 else {
@@ -284,16 +288,29 @@ class Airport {
     }
 
     _takeOffAction(message) {
-        let runway = message.data;
-        console.log('plane ' + runway.plane.ID + ' took off from ' + runway.ID);
-        runway.plane = null;
+        return new Promise((resolve, reject) => {
+            let runway = message.data;
+            Promise.all([
+                AirportRepository.removePlane(this.airportData._id, runway.plane),
+                PlaneRepository.delete(runway.plane._id),
+                RunwayRepository.update(runway._id, { plane: null })
+            ])
+                .then(() => {
+                    console.log('plane ' + runway.plane + ' took off from ' + runway.tag);
+                    runway.plane = null;
+                    _.remove(this.airportData.planes, (o) => { return o._id.equals(runway.plane) })
+                    resolve()
+                }).catch((err) => {
+                    reject(err);
+                })
+        })
     }
 
     _moveToTerminalAction(message) {
         return new Promise((resolve, reject) => {
 
             let runway = message.data;
-            let plane = _.find(this.airportData.planes, (o) => { return o._id.equals(runway.plane)});
+            let plane = _.find(this.airportData.planes, (o) => { return o._id.equals(runway.plane) });
             let missionStartTime = new Date;
             let delay = Math.floor((Math.random() * TERMINAL_WAIT_DELAY_MAX) + TERMINAL_WAIT_DELAY_MIN);
 
@@ -312,7 +329,7 @@ class Airport {
                     plane.mission = Plane.MISSION_TYPE.IN_TERMINAL;
                     plane.missionStartTime = missionStartTime;
                     runway.plane = null;
-                    this.terminal.push({ plane: plane._id,delay: delay });
+                    this.terminal.push({ plane: plane._id, delay: delay });
                     resolve();
 
                 })

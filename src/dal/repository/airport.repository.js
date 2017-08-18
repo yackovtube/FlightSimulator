@@ -136,6 +136,25 @@ class AirportRepository {
         })
     }
 
+    removePlane(id,plane){
+        return new Promise((resolve, reject) => {
+
+            Airport.update(
+                { _id: id },//where
+                { $pull: { planes: plane } },
+                (err, airport) => {
+                    if (err) {
+                        reject(err);
+                    }
+                    else {
+                        resolve();
+                    }
+
+                }
+            );
+        })
+    }
+
 };
 
 module.exports = new AirportRepository();  //singelton

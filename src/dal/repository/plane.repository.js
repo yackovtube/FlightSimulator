@@ -31,5 +31,18 @@ class PlaneRepository {
         });
     }
 
+    delete(id){
+        return new Promise((resolve, reject) => {
+            Plane.remove({ _id: id }, (err, doc) => {
+                if(err){
+                    reject(err);
+                }
+                else{
+                    resolve(doc);
+                }
+            })
+        });
+    }
+
 }
 module.exports = new PlaneRepository(); // singleton
