@@ -1,3 +1,5 @@
+const _ = require('lodash');
+
 const Airport = require('./../models/airport.model');
 const Plane = require('./../models/plane.model');
 const Runway = require('./../models/runway.model');
@@ -101,6 +103,26 @@ class AirportRepository {
             Airport.update(
                 { _id: id },//where
                 { $push: { terminal: { plane: plane, delay: delay } } },
+                (err, airport) => {
+                    if (err) {
+                        reject(err);
+                    }
+                    else {
+                        resolve();
+                    }
+
+                }
+            );
+        })
+    }
+
+    removePlaneFromTerminal(id, plane) {
+
+        return new Promise((resolve, reject) => {
+
+            Airport.update(
+                { _id: id },//where
+                { $pull: { terminal: { plane: plane } } },
                 (err, airport) => {
                     if (err) {
                         reject(err);

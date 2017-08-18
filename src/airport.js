@@ -6,7 +6,7 @@ const RunwayRepository = require('./dal/repository/runway.repository');
 const AirportRepository = require('./dal/repository/airport.repository');
 const PlaneRepository = require('./dal/repository/plane.repository');
 
-const TERMINAL_WAIT_DELAY_MAX = 10000;
+const TERMINAL_WAIT_DELAY_MAX = 2000;
 const TERMINAL_WAIT_DELAY_MIN = 0;
 
 class Airport {
@@ -106,14 +106,19 @@ class Airport {
                     // case Message.TYPE.TAKE_OFF:
                     //     handledActionPromise = this._takeOffAction(message)
                     //     break;
-                    // case Message.TYPE.EXIT_TERMINAL:
-                    //     handledActionPromise = this._exitFromTerminalAction(message)
-                    //     break;
+                    case Message.TYPE.EXIT_TERMINAL:
+                        handledActionPromise = this._exitFromTerminalAction(message)
+                            .catch((err) => {
+                                console.error('unable to move exit terminal');
+                                return null;
+                            })
+                        break;
                 }
 
                 if (!handledActionPromise) {
                     console.warn('Unable to resolve action type ' + message.type, message)
-                    resolve(this.handelMessages(messages));
+                    resolve(this.handelMessages(messages))
+
                 }
                 else {
                     handledActionPromise
@@ -158,9 +163,10 @@ class Airport {
 
                         //trminal logic (chack planes that need to take of)
                         let canExitTerminal = true;
-                        for (let i in this.exitTerminalRunways) {
+                        for (let i = 0; i < this.exitTerminalRunways.length; ++i) {
                             let runway = this.exitTerminalRunways[i];
-                            if (runway.plane && runway.plane.mission == Plane.MISSION_TYPE.TAKEOFF) {
+                            let plane = _.find(this.airportData.planes, (o) => { return o._id.equals(runway.plane) });
+                            if (plane && plane.mission == Plane.MISSION_TYPE.TAKEOFF) {
                                 canExitTerminal = false;
                                 break;
                             }
@@ -168,11 +174,11 @@ class Airport {
 
                         if (canExitTerminal) {
                             for (let i = 0; i < this.terminal.length; ++i) {
-                                let plane = _.find(this.airportData.planes,(o)=>{return o._id.equals(this.terminal[i].plane)});
+                                let plane = _.find(this.airportData.planes, (o) => { return o._id.equals(this.terminal[i].plane) });
                                 let delay = this.terminal[i].delay;
                                 let exitTime = plane.missionStartTime.getTime() + delay;
                                 if (now < exitTime)
-                                    this.messages.push(new Message(Message.TYPE.EXIT_TERMINAL, plane));
+                                    this.messages.push(new Message(Message.TYPE.EXIT_TERMINAL, plane._id));
 
                             }
                         }
@@ -233,23 +239,46 @@ class Airport {
     }
 
     _exitFromTerminalAction(message) {
-        let plane = message.data;
+        return new Promise((resolve, reject) => {
 
-        for (let i in this.exitTerminalRunways) {
-            let runway = this.exitTerminalRunways[i];
+            let plane = _.find(this.airportData.planes, (o) => { return o._id.equals(message.data) });
+            let counter = 0;
 
-            if (!runway.plane) {
-                runway.plane = plane;
+            for (let i = 0; i < this.exitTerminalRunways.length; i++) {
+                let runway = this.exitTerminalRunways[i];
 
-                _.remove(this.terminal, function (p) {
-                    return plane.ID == p.ID;
-                })
-                console.log('Plane ' + plane.ID + ' is exiting the terminal and moved to runway ' + runway.ID)
-                plane.prosses = Plane.MISSION_TYPE.TAKEOFF;
-                plane.prossesStartTime = new Date();
-                break;
+                if (!runway.plane) {
+                    runway.plane = plane;
+                    let now = new Date();
+
+                    //update db
+                    Promise.all([
+                        RunwayRepository.update(runway._id, { plane: plane._id }),
+                        AirportRepository.removePlaneFromTerminal(this.airportData._id, plane._id),
+                        PlaneRepository.update(plane, { mission: Plane.MISSION_TYPE.TAKEOFF, missionStartTime: now })])
+                        .then(() => {
+                            console.log('Plane ' + plane._id + ' is exiting the terminal and moved to runway ' + runway.tag);
+
+                            _.remove(this.terminal, function (o) { return plane._id.equals(o.plane) });
+                            plane.mission = Plane.MISSION_TYPE.TAKEOFF;
+                            plane.missionStartTime = now;
+                            runway.plane = plane._id
+                            resolve();
+                        })
+                        .catch((err) => {
+                            reject(err);
+                        });
+                    break;
+                }
+                else {
+                    counter++;
+                }
             }
-        }
+            //no availbale runways
+            if (counter == this.exitTerminalRunways.length) {
+                resolve();
+            }
+        })
 
 
     }
@@ -264,24 +293,26 @@ class Airport {
         return new Promise((resolve, reject) => {
 
             let runway = message.data;
-            let plane = runway.plane;
+            let plane = _.find(this.airportData.planes, (o) => { return o._id.equals(runway.plane)});
+            let missionStartTime = new Date;
             let delay = Math.floor((Math.random() * TERMINAL_WAIT_DELAY_MAX) + TERMINAL_WAIT_DELAY_MIN);
 
             //update database 
             Promise
                 .all([
-                    PlaneRepository.update(plane, { mission: Plane.MISSION_TYPE.IN_TERMINAL, missionStartTime: new Date() }),
-                    AirportRepository.addPlaneToTerminal(this.airportData._id, plane, delay),
+                    PlaneRepository.update(plane._id, { mission: Plane.MISSION_TYPE.IN_TERMINAL, missionStartTime: missionStartTime }),
+                    AirportRepository.addPlaneToTerminal(this.airportData._id, plane._id, delay),
                     RunwayRepository.update(runway._id, { plane: null })
                 ])
                 //update instance
                 .then(() => {
-                    this.terminal.push({
-                        plane: runway.plane,
-                        delay: delay
-                    });
-                    console.log('plane ' + runway.plane + ' moved from ' + runway.tag + ' to terminal');
+
+                    console.log('plane ' + plane._id + ' moved from ' + runway.tag + ' to terminal');
+
+                    plane.mission = Plane.MISSION_TYPE.IN_TERMINAL;
+                    plane.missionStartTime = missionStartTime;
                     runway.plane = null;
+                    this.terminal.push({ plane: plane._id,delay: delay });
                     resolve();
 
                 })
@@ -371,7 +402,7 @@ class Airport {
 
     //makes a request andd adds the request to our array called messages
     addPlane(cb) {
-        this.messages.push(new Message(Message.TYPE.ADD_PLANE, { mission:Plane.MISSION_TYPE.LANDING, missionStartTime: new Date}))
+        this.messages.push(new Message(Message.TYPE.ADD_PLANE, { mission: Plane.MISSION_TYPE.LANDING, missionStartTime: new Date }))
     }
 
     careateDesaster(type, ranwayNum) {
