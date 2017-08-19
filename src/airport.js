@@ -413,6 +413,29 @@ class Airport {
         });
     }
 
+    getState() {
+        let terminal = this.airportData.terminal.map((o)=>{
+            return{
+                plane: _.find(this.airportData.planes, (p) => { return p._id.equals(o.plane)}),
+                delay: o.delay
+            };
+        })
+        let runways =  this.airportData.runways.map((o) => {
+
+            return {
+                plane: _.find(this.airportData.planes, (p) => { return p._id.equals(o.plane)}),
+                tag: o.tag,
+                _id: o._id,
+                status: 0 // TBI
+            }
+        })
+
+        return {
+            runways: runways,
+            terminal: terminal
+        };
+    }
+
     initRunway() {
 
     }
