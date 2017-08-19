@@ -105,10 +105,25 @@ class App {
 
             })
             .then(() => {
-                //setp 5: brodcast state
+
+                //setp 5: socket API
+
+                //update airport loop
                 setInterval(() => {
-                    this.socket.emit('airportUpdate',this.airport.getState())
+                    this.socket.emit('airportUpdate', this.airport.getState())
                 }, SOCKET_UPDATE_INTERVAL)
+
+
+                this.socket.on('connection', (socket) => {
+
+                    console.log('User Connected');
+
+                    socket.on('closeRunway', (runway) => {
+                        console.log(runway);
+                        //TODO: add close runway logic
+                    });
+                });
+
 
             })
             .catch((err) => {
