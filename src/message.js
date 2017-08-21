@@ -15,8 +15,7 @@ Message.TYPE = {
     MOVE_TO_TERMINAL: 2,
     EXIT_TERMINAL: 3,
     TAKE_OFF: 4,
-    CLOSE_RUNWAY: 5
-
+    SET_RUNWAY_STATUS: 5
 };
 
 module.exports = Message;

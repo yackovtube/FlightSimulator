@@ -117,10 +117,10 @@ class Airport {
                                 return null;
                             })
                         break;
-                    case Message.TYPE.CLOSE_RUNWAY:
-                        handledActionPromise = this._closeRunwayAction(message)
+                    case Message.TYPE.SET_RUNWAY_STATUS:
+                        handledActionPromise = this._setRunwayStatusAction(message)
                             .catch((err) => {
-                                console.error('unable to close runway');
+                                console.error('unable to set runway status');
                                 return null;
                             })
                         break;
@@ -198,9 +198,9 @@ class Airport {
 
                         //check status of runways
                         let openRunways = [];
-                        for(let i =0; i < this.airportData.runways.length; i++){
+                        for (let i = 0; i < this.airportData.runways.length; i++) {
                             let runway = this.airportData.runways[i];
-                            if(runway.status === Runway.STATUS_TYPE.OPEN){
+                            if (runway.status === Runway.STATUS_TYPE.OPEN) {
                                 openRunways.push(runway)
                             }
                         }
@@ -389,19 +389,21 @@ class Airport {
         })
     }
 
-    _closeRunwayAction(message) {
+    _setRunwayStatusAction(message) {
 
         return new Promise((resolve, reject) => {
+
             let runway = _.find(this.airportData.runways, (o) => {
-                return o._id.equals(message);
+                return o._id.equals(message.data.runway);
             })
-            if (runway.status === Runway.STATUS_TYPE.CLOSED) {
+            if (runway.status === message.data.status) {
                 rsolve();
                 return;
             }
-            RunwayRepository.update(runway._id, { status: Runway.STATUS_TYPE.CLOSED })
+
+            RunwayRepository.update(runway._id, { status:  message.data.status })
                 .then(() => {
-                    runway.status = Runway.STATUS_TYPE.CLOSED;
+                    runway.status =  message.data.status;
                     resolve();
                 })
                 .catch((err) => {
@@ -409,6 +411,7 @@ class Airport {
                 })
         })
     }
+
 
     //the function to resolve add plane massege
     _addPlaneAction(message) {
@@ -484,13 +487,21 @@ class Airport {
         this.messages.push(new Message(Message.TYPE.ADD_PLANE, { mission: Plane.MISSION_TYPE.LANDING, missionStartTime: new Date }))
     }
 
-    closeRunway(id) {
+
+    setRunwayStatus(id, status) {
+
         let runway = _.find(this.airportData.runways, (o) => {
             return o._id.equals(id);
         })
-        this.messages.push(new Message(Message.TYPE.CLOSE_RUNWAY, { runway: runway._id }))
-    }
 
+        if (!runway) {
+            return;
+        }
+
+        let runwayStatus = status === Runway.STATUS_TYPE.OPEN ? Runway.STATUS_TYPE.OPEN : Runway.STATUS_TYPE.CLOSED;
+        this.messages.push(new Message(Message.TYPE.SET_RUNWAY_STATUS, { runway: runway._id, status: status }))
+
+    }
 
 }
 

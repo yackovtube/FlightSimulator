@@ -31,4 +31,5 @@ $ node ./src/index.js
 
 ### Lisitner
 
-**closeRunway(runwayID)** - 
+**closeRunway(runwayID)** - Close runway by id
+**openRunway(runwayID)** - open runway by id

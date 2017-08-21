@@ -119,8 +119,11 @@ class App {
                     console.log('User Connected');
 
                     socket.on('closeRunway', (id) => {
-                        console.log(id);
-                        this.airport._closeRunwayAction(id);
+                        this.airport.setRunwayStatus(id, 1);
+                    });
+                    
+                    socket.on('openRunway', (id) => {
+                         this.airport.setRunwayStatus(id, 0);
                     });
                 });
 
