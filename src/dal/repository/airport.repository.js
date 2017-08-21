@@ -29,14 +29,14 @@ class AirportRepository {
         //step 1: create runways
         return Promise
             .all([
-                RunwayRepository.create(1, Runway.TYPE.IN_BOUND),
-                RunwayRepository.create(2, Runway.TYPE.IN_BOUND),
-                RunwayRepository.create(3, Runway.TYPE.IN_BOUND),
-                RunwayRepository.create(4, Runway.TYPE.RUNWAY),
-                RunwayRepository.create(5, Runway.TYPE.POST_LANDING),
-                RunwayRepository.create(6, Runway.TYPE.TERMINAL_ENTRANCE),
-                RunwayRepository.create(7, Runway.TYPE.TERMINAL_ENTRANCE),
-                RunwayRepository.create(8, Runway.TYPE.PRE_TAKEOFF),
+                RunwayRepository.create(1, Runway.TYPE.IN_BOUND, Runway.STATUS_TYPE.OPEN),
+                RunwayRepository.create(2, Runway.TYPE.IN_BOUND, Runway.STATUS_TYPE.OPEN),
+                RunwayRepository.create(3, Runway.TYPE.IN_BOUND, Runway.STATUS_TYPE.OPEN),
+                RunwayRepository.create(4, Runway.TYPE.RUNWAY, Runway.STATUS_TYPE.OPEN),
+                RunwayRepository.create(5, Runway.TYPE.POST_LANDING, Runway.STATUS_TYPE.OPEN),
+                RunwayRepository.create(6, Runway.TYPE.TERMINAL_ENTRANCE, Runway.STATUS_TYPE.OPEN),
+                RunwayRepository.create(7, Runway.TYPE.TERMINAL_ENTRANCE, Runway.STATUS_TYPE.OPEN),
+                RunwayRepository.create(8, Runway.TYPE.PRE_TAKEOFF, Runway.STATUS_TYPE.OPEN),
             ])
             .then((docs) => {
                 //step 2: link the runways and wait untill they are all updated (promise)
@@ -136,7 +136,7 @@ class AirportRepository {
         })
     }
 
-    removePlane(id,plane){
+    removePlane(id, plane) {
         return new Promise((resolve, reject) => {
 
             Airport.update(

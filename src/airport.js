@@ -22,7 +22,7 @@ class Airport {
         this.interval = null;
 
         //helping data stracher for runways
-        this.runways = {}// airportData.runways;
+        this.runways = {}
         this.runways[1] = _.find(this.airportData.runways, { tag: 1 });
         this.runways[2] = _.find(this.airportData.runways, { tag: 2 });
         this.runways[3] = _.find(this.airportData.runways, { tag: 3 });
@@ -117,6 +117,14 @@ class Airport {
                                 return null;
                             })
                         break;
+                    case Message.TYPE.CLOSE_RUNWAY:
+                        handledActionPromise = this._closeRunwayAction(message)
+                            .catch((err) => {
+                                console.error('unable to close runway');
+                                return null;
+                            })
+                        break;
+
                 }
 
                 if (!handledActionPromise) {
@@ -186,18 +194,28 @@ class Airport {
 
                             }
                         }
-                        let freeRunwaires = _.clone(this.runways);
 
+
+                        //check status of runways
+                        let openRunways = [];
+                        for(let i =0; i < this.airportData.runways.length; i++){
+                            let runway = this.airportData.runways[i];
+                            if(runway.status === Runway.STATUS_TYPE.OPEN){
+                                openRunways.push(runway)
+                            }
+                        }
+
+                        //priorety to take off planes (not to jam runway 4)
                         if (this.runways[8].plane && this.runways[3].plane) {
-                            _.remove(freeRunwaires, function (runway) {
-                                return runways.ID == runway[3].ID;
+                            _.remove(openRunways, (runway) => {
+                                return runway._id == this.runways[3]._id;
                             })
                         }
 
 
                         //run way logic
-                        for (let ID in freeRunwaires) {
-                            let fromRunway = freeRunwaires[ID];
+                        for (let ID in openRunways) {
+                            let fromRunway = openRunways[ID];
 
                             //if we have a plane in the runway
                             if (fromRunway.plane) {
@@ -371,6 +389,27 @@ class Airport {
         })
     }
 
+    _closeRunwayAction(message) {
+
+        return new Promise((resolve, reject) => {
+            let runway = _.find(this.airportData.runways, (o) => {
+                return o._id.equals(message);
+            })
+            if (runway.status === Runway.STATUS_TYPE.CLOSED) {
+                rsolve();
+                return;
+            }
+            RunwayRepository.update(runway._id, { status: Runway.STATUS_TYPE.CLOSED })
+                .then(() => {
+                    runway.status = Runway.STATUS_TYPE.CLOSED;
+                    resolve();
+                })
+                .catch((err) => {
+                    reject(err);
+                })
+        })
+    }
+
     //the function to resolve add plane massege
     _addPlaneAction(message) {
 
@@ -414,19 +453,19 @@ class Airport {
     }
 
     getState() {
-        let terminal = this.airportData.terminal.map((o)=>{
-            return{
-                plane: _.find(this.airportData.planes, (p) => { return p._id.equals(o.plane)}),
+        let terminal = this.airportData.terminal.map((o) => {
+            return {
+                plane: _.find(this.airportData.planes, (p) => { return p._id.equals(o.plane) }),
                 delay: o.delay
             };
         })
-        let runways =  this.airportData.runways.map((o) => {
+        let runways = this.airportData.runways.map((o) => {
 
             return {
-                plane: _.find(this.airportData.planes, (p) => { return p._id.equals(o.plane)}),
+                plane: _.find(this.airportData.planes, (p) => { return p._id.equals(o.plane) }),
                 tag: o.tag,
                 _id: o._id,
-                status: 0 // TBI
+                status: o.status
             }
         })
 
@@ -445,9 +484,13 @@ class Airport {
         this.messages.push(new Message(Message.TYPE.ADD_PLANE, { mission: Plane.MISSION_TYPE.LANDING, missionStartTime: new Date }))
     }
 
-    careateDesaster(type, ranwayNum) {
-
+    closeRunway(id) {
+        let runway = _.find(this.airportData.runways, (o) => {
+            return o._id.equals(id);
+        })
+        this.messages.push(new Message(Message.TYPE.CLOSE_RUNWAY, { runway: runway._id }))
     }
+
 
 }
 

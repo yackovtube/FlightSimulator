@@ -15,3 +15,20 @@ $ npm install
 ```sh
 $ node ./src/index.js
 ```
+
+
+## Socket API
+
+### Emits
+
+**airptorUpdate** - Sends the current state of the airport
+```
+{
+    runways: <Array<Runway>>,
+    terminal: <Array<Plane>>
+}
+```
+
+### Lisitner
+
+**closeRunway(runwayID)** - 

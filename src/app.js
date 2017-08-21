@@ -118,9 +118,9 @@ class App {
 
                     console.log('User Connected');
 
-                    socket.on('closeRunway', (runway) => {
-                        console.log(runway);
-                        //TODO: add close runway logic
+                    socket.on('closeRunway', (id) => {
+                        console.log(id);
+                        this.airport._closeRunwayAction(id);
                     });
                 });
 

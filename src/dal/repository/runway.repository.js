@@ -4,11 +4,11 @@ const Runway = require('./../models/runway.model');
 class RunwayRepository {
 
 
-    create(tag, type) {
+    create(tag, type, status) {
 
         return new Promise((resovle, reject) => {
 
-            let runway = new Runway({ tag: tag, conectedTo: [], type: type });
+            let runway = new Runway({ tag: tag, conectedTo: [], type: type, status : status });
             runway.save((err, doc) => {
                 if (err) {
                     reject(err);

@@ -9,10 +9,17 @@ const runwaySchema = mongoose.Schema({
     //type of runway
     type: Number,
     //plane if any
-    plane: { type:Schema.Types.ObjectId, ref: 'Plane'}
+    plane: {type:Schema.Types.ObjectId, ref: 'Plane'},
+    //status
+    status: { type: Number, default : 0 }
 });
 
 const Runway = mongoose.model('Runway', runwaySchema);
+
+Runway.STATUS_TYPE = {
+    OPEN : 0,
+    CLOSED: 1
+}
 
 Runway.TYPE = {
     //runway 1,2,3

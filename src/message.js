@@ -14,7 +14,9 @@ Message.TYPE = {
     MOVE: 1,
     MOVE_TO_TERMINAL: 2,
     EXIT_TERMINAL: 3,
-    TAKE_OFF: 4
+    TAKE_OFF: 4,
+    CLOSE_RUNWAY: 5
+
 };
 
 module.exports = Message;
