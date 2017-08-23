@@ -9,6 +9,8 @@ const PlaneRepository = require('./dal/repository/plane.repository');
 
 const TERMINAL_WAIT_DELAY_MAX = 2000;
 const TERMINAL_WAIT_DELAY_MIN = 0;
+const FAST_SPEED = 500;
+const SLOW_SPEED = 3000;
 
 class Airport {
 
@@ -518,28 +520,28 @@ class Airport {
     setSpeed(speed) {
         return new Promise((resolve, reject) => {
             var newSpeed;
-            if (speed == 'slow') {
-                newSpeed = 1;
+
+            switch (speed) {
+                case 'slow': newSpeed = AirportModel.SPEED.SLOW; break;
+                case 'fast': newSpeed = AirportModel.SPEED.FAST; break;
             }
-            else if (speed == 'fast') {
-                newSpeed = 0;
-            }
-            AirportRepository.updateSpeed(this.airportData._id ,newSpeed)
+
+            AirportRepository.updateSpeed(this.airportData._id, newSpeed)
                 .then(() => {
-                    this.stop()
-                    if (speed == 'slow') {
-                        this.intervalSpeed = 3000;
+                    this.stop();
+                    if (newSpeed == AirportModel.SPEED.SLOW) {
+                        this.intervalSpeed = SLOW_SPEED;
                     }
-                    else if (speed == 'fast') {
-                        this.intervalSpeed = 500;
+                    else if (newSpeed == AirportModel.SPEED.FAST) {
+                        this.intervalSpeed = FAST_SPEED;
                     }
-                    this.start()
+                    this.start();
                     resolve();
                 })
-                .catch((err)=>{
+                .catch((err) => {
                     reject(err);
-              })
-        })  
+                })
+        })
     }
 
 }
