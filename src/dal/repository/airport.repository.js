@@ -58,7 +58,8 @@ class AirportRepository {
                     let airport = new Airport({
                         runways: docs.map(d => d._id),
                         terminal: [],
-                        exitTerminalRunways: [docs[5]._id, docs[6]._id]
+                        exitTerminalRunways: [docs[5]._id, docs[6]._id],
+                        speed: Airport.SPEED.FAST
                     });
                     airport.save((err, doc) => {
                         if (err) {
@@ -123,6 +124,24 @@ class AirportRepository {
             Airport.update(
                 { _id: id },//where
                 { $pull: { terminal: { plane: plane } } },
+                (err, airport) => {
+                    if (err) {
+                        reject(err);
+                    }
+                    else {
+                        resolve();
+                    }
+
+                }
+            );
+        })
+    }
+
+    updateSpeed(id, speed){
+        return new Promise((resolve,reject)=>{
+            Airport.update(
+                { _id: id },//where
+                { speed : speed },
                 (err, airport) => {
                     if (err) {
                         reject(err);

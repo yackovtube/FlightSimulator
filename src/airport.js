@@ -1,6 +1,7 @@
 const _ = require('lodash');
 const Runway = require('./dal/models/runway.model');
 const Plane = require('./dal/models/plane.model');
+const AirportModel = require('./dal/models/airport.model');
 const Message = require('./message');
 const RunwayRepository = require('./dal/repository/runway.repository');
 const AirportRepository = require('./dal/repository/airport.repository');
@@ -11,13 +12,23 @@ const TERMINAL_WAIT_DELAY_MIN = 0;
 
 class Airport {
 
+
     //our constructor we start the runways 
     constructor(airportData) {
+
+
 
         this.inProsses = false;
 
         this.airportData = airportData;
         this.messages = Array();
+        if (this.airportData.speed == 0) {
+            this.intervalSpeed = 1000;
+        }
+        else {
+            this.intervalSpeed = 3000;
+        }
+
 
         this.interval = null;
 
@@ -152,6 +163,7 @@ class Airport {
     //take care of all the messages
     start() {
         if (!this.interval)
+
             this.interval = setInterval(() => {
 
                 //semaphore
@@ -250,7 +262,7 @@ class Airport {
                         }
 
                     })
-            }, 1000);
+            }, this.intervalSpeed);
     }
 
     stop() {
@@ -401,9 +413,9 @@ class Airport {
                 return;
             }
 
-            RunwayRepository.update(runway._id, { status:  message.data.status })
+            RunwayRepository.update(runway._id, { status: message.data.status })
                 .then(() => {
-                    runway.status =  message.data.status;
+                    runway.status = message.data.status;
                     resolve();
                 })
                 .catch((err) => {
@@ -501,6 +513,33 @@ class Airport {
         let runwayStatus = status === Runway.STATUS_TYPE.OPEN ? Runway.STATUS_TYPE.OPEN : Runway.STATUS_TYPE.CLOSED;
         this.messages.push(new Message(Message.TYPE.SET_RUNWAY_STATUS, { runway: runway._id, status: status }))
 
+    }
+
+    setSpeed(speed) {
+        return new Promise((resolve, reject) => {
+            var newSpeed;
+            if (speed == 'slow') {
+                newSpeed = 1;
+            }
+            else if (speed == 'fast') {
+                newSpeed = 0;
+            }
+            AirportRepository.updateSpeed(this.airportData._id ,newSpeed)
+                .then(() => {
+                    this.stop()
+                    if (speed == 'slow') {
+                        this.intervalSpeed = 3000;
+                    }
+                    else if (speed == 'fast') {
+                        this.intervalSpeed = 500;
+                    }
+                    this.start()
+                    resolve();
+                })
+                .catch((err)=>{
+                    reject(err);
+              })
+        })  
     }
 
 }

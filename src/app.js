@@ -9,7 +9,7 @@ const socketIO = require('socket.io')
 
 // config
 const HTTP_SERVER_PORT = 80;
-const SOCKET_UPDATE_INTERVAL = 2000;
+const SOCKET_UPDATE_INTERVAL = 500;
 
 
 class App {
@@ -125,6 +125,16 @@ class App {
                     socket.on('openRunway', (id) => {
                          this.airport.setRunwayStatus(id, 0);
                     });
+
+                    socket.on('slowSpeed', ()=>{
+                        this.airport.setSpeed('slow')
+                        console.log('change to slow speed')
+                    })
+
+                    socket.on('fastSpeed', ()=>{
+                        this.airport.setSpeed('fast')
+                        console.log('change to fast speed')
+                    })
                 });
 
 
