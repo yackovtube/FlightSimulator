@@ -13,6 +13,7 @@ class AirportRepository {
             Airport.find({})
                 .populate({ path: 'runways', populate: { path: 'runways' } })
                 .populate({ path: 'planes', populate: { path: 'planes' } })
+                .populate({ path: 'inBoundPlanes', populate: { path: 'inBoundPlanes' } })
                 .exec((err, docs) => {
                     if (err) {
                         reject(err);
@@ -59,7 +60,8 @@ class AirportRepository {
                         runways: docs.map(d => d._id),
                         terminal: [],
                         exitTerminalRunways: [docs[5]._id, docs[6]._id],
-                        speed: Airport.SPEED.FAST
+                        speed: Airport.SPEED.FAST,
+                        inBoundPlanes: []
                     });
                     airport.save((err, doc) => {
                         if (err) {
@@ -104,6 +106,45 @@ class AirportRepository {
             Airport.update(
                 { _id: id },//where
                 { $push: { terminal: { plane: plane, delay: delay } } },
+                (err, airport) => {
+                    if (err) {
+                        reject(err);
+                    }
+                    else {
+                        resolve();
+                    }
+
+                }
+            );
+        })
+    }
+
+    addPlaneToInBoundPlanes(id, plane){
+
+        return new Promise((resolve, reject) => {
+
+            Airport.update(
+                { _id: id },//where
+                { $push: { inBoundPlanes: plane } },
+                (err, airport) => {
+                    if (err) {
+                        reject(err);
+                    }
+                    else {
+                        resolve();
+                    }
+
+                }
+            );
+        })
+    }
+
+    removePlaneFromInBoundPlanes(id, plane){
+         return new Promise((resolve, reject) => {
+
+            Airport.update(
+                { _id: id },//where
+                { $pull: { inBoundPlanes: plane } },
                 (err, airport) => {
                     if (err) {
                         reject(err);

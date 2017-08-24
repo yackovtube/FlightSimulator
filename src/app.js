@@ -93,10 +93,7 @@ class App {
                 this.simulator.start((e) => {
 
                     if (e.type == Simulator.EVENT.ADD_PLANE) {
-
-                        this.airport.addPlane((error) => {
-                            console.error('Unable to add plane to airport');
-                        });
+                        this.airport.addPlane(Plane.MISSION_TYPE.LANDING);
                     }
                 });
 

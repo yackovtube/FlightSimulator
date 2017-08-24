@@ -7,8 +7,8 @@ const RunwayRepository = require('./dal/repository/runway.repository');
 const AirportRepository = require('./dal/repository/airport.repository');
 const PlaneRepository = require('./dal/repository/plane.repository');
 
-const TERMINAL_WAIT_DELAY_MAX = 2000;
-const TERMINAL_WAIT_DELAY_MIN = 0;
+const TERMINAL_WAIT_DELAY_MAX = 30000;
+const TERMINAL_WAIT_DELAY_MIN = 5000;
 const FAST_SPEED = 500;
 const SLOW_SPEED = 3000;
 
@@ -18,8 +18,7 @@ class Airport {
     //our constructor we start the runways 
     constructor(airportData) {
 
-
-
+        this.emergencyCounter = 0;//the amount of planes in emergancy landing state
         this.inProsses = false;
 
         this.airportData = airportData;
@@ -137,6 +136,13 @@ class Airport {
                                 return null;
                             })
                         break;
+                    case Message.TYPE.IN_BOUND_PLANE:
+                        handledActionPromise = this._inBoundPlaneAction(message)
+                            .catch((err) => {
+                                console.error('unable to move plaine to airport');
+                                return null;
+                            })
+                        break;
 
                 }
 
@@ -173,10 +179,6 @@ class Airport {
                     return;
                 }
 
-                if (this.messages.length === 0) {
-                    return;
-                }
-
                 this.inProsses = true;
                 this.handelMessages(this.messages)
                     .then(() => {
@@ -199,14 +201,25 @@ class Airport {
                         }
 
                         if (canExitTerminal) {
+
+                            let canExit = [];
+
                             for (let i = 0; i < this.terminal.length; ++i) {
                                 let plane = _.find(this.airportData.planes, (o) => { return o._id.equals(this.terminal[i].plane) });
                                 let delay = this.terminal[i].delay;
                                 let exitTime = plane.missionStartTime.getTime() + delay;
-                                if (now < exitTime)
-                                    this.messages.push(new Message(Message.TYPE.EXIT_TERMINAL, plane._id));
+                                if (now > exitTime) {
+                                    canExit.push(plane);
+                                }
 
                             }
+
+                            if (canExit.length) {
+                                _.sortBy(canExit, [o => Date.now() - o.missionStartTime.getTime()], ['desc']);
+                                let exitTerminalPlane = canExit[0];
+                                this.messages.push(new Message(Message.TYPE.EXIT_TERMINAL, exitTerminalPlane._id));
+                            }
+
                         }
 
 
@@ -220,12 +233,46 @@ class Airport {
                         }
 
                         //priorety to take off planes (not to jam runway 4)
+                        //priorety to take off planes (not to jam runway 4)
                         if (this.runways[8].plane && this.runways[3].plane) {
                             _.remove(openRunways, (runway) => {
                                 return runway._id == this.runways[3]._id;
                             })
                         }
 
+
+                        //lower emergancey counter
+                        if (this.runways[4].plane && this.runways[4].plane.mission == Plane.MISSION_TYPE.EMERGENCY_LANDING) {
+                            this.emergencyCounter--;
+                        }
+
+                        //Lockdown if there is a plane in emergancy landing state
+                        if (this.emergencyCounter) {
+                            _.remove(openRunways, (o) => {
+                                return o.tag == 8
+                            });
+                        }
+
+                        //inBoundPlane logic
+                        if (this.airportData.inBoundPlanes.length && !this.runways[1].plane) {
+
+                            _.orderBy(
+                                this.airportData.inBoundPlanes.toObject(),
+                                [
+                                    (o) => { return o.mission == Plane.MISSION_TYPE.EMERGENCY_LANDING ? 1 : 0; }, //Prioritez emergancey landing
+                                    (o) => { return o.missionStartTime.getTime() } // second priorety by time in air
+                                ],
+                                ['asc', 'desc']
+                            );
+                            let inBoundPlane = this.airportData.inBoundPlanes[0];
+                            this.messages.push(new Message(Message.TYPE.IN_BOUND_PLANE, { runway: this.runways[1], plane: inBoundPlane._id }));
+
+
+                            //increase emergancey counter
+                            if (inBoundPlane.mission == Plane.MISSION_TYPE.EMERGENCY_LANDING) {
+                                this.emergencyCounter++;
+                            }
+                        }
 
                         //run way logic
                         for (let ID in openRunways) {
@@ -263,6 +310,11 @@ class Airport {
 
                         }
 
+
+
+
+
+
                     })
             }, this.intervalSpeed);
     }
@@ -294,6 +346,7 @@ class Airport {
                         PlaneRepository.update(plane, { mission: Plane.MISSION_TYPE.TAKEOFF, missionStartTime: now })])
                         .then(() => {
                             console.log('Plane ' + plane._id + ' is exiting the terminal and moved to runway ' + runway.tag);
+
 
                             _.remove(this.terminal, function (o) { return plane._id.equals(o.plane) });
                             plane.mission = Plane.MISSION_TYPE.TAKEOFF;
@@ -432,41 +485,61 @@ class Airport {
 
         return new Promise((resolve, reject) => {
 
-            let runway = this.runways[1];
+            let _plane; //scope cheating
 
-            if (runway.plane) {
-                reject(new Error('unable to exption'));
-            }
-            else {
+            //create plane 
+            PlaneRepository.create(message.data)
+                .then((plane) => {
+                    _plane = plane
+                    console.log('Plane ' + plane._id + ' was created');
 
-                let _plane;
+                    //update airport
+                    return Promise.all([
+                        AirportRepository.addPlaneToInBoundPlanes(this.airportData._id, plane._id),
+                        AirportRepository.addPlane(this.airportData._id, plane)
+                    ])
 
-                //create plane 
-                PlaneRepository.create(message.data)
-                    .then((plane) => {
-                        _plane = plane
-                        console.log('Plane ' + plane._id + ' was created');
+                })
+                .then(() => {
+                    //update curent instances
+                    this.airportData.planes.push(_plane);
+                    this.airportData.inBoundPlanes.push(_plane)
 
-                        //update runway
-                        return Promise.all([
-                            RunwayRepository.update(runway._id, { plane: plane._id }),
-                            AirportRepository.addPlane(this.airportData._id, plane)
-                        ])
+                    resolve();
+                })
+                .catch((err) => {
+                    reject(err);
+                })
 
-                    })
-                    .then(() => {
-                        //update curent instances
-                        runway.plane = _plane._id;
-                        this.airportData.planes.push(_plane);
-
-                        resolve();
-                    })
-                    .catch((err) => {
-                        reject(err);
-                    })
-
-            }
         });
+    }
+
+    _inBoundPlaneAction(message) {
+
+        return new Promise((resolve, reject) => {
+            let runway = message.data.runway;
+            let planeID = message.data.plane
+            if (runway.plane) {
+                reject()
+                return;
+            }
+
+            Promise
+                .all([
+                    RunwayRepository.update(runway._id, { plane: planeID }),
+                    AirportRepository.removePlaneFromInBoundPlanes(this.airportData._id, planeID)
+                ])
+                .then(() => {
+                    _.remove(this.airportData.inBoundPlanes, o => o._id.equals(planeID))
+                    runway.plane = planeID;
+                    resolve();
+                })
+                .catch((err) => {
+                    reject(err);
+                })
+
+        })
+
     }
 
     getState() {
@@ -482,13 +555,16 @@ class Airport {
                 plane: _.find(this.airportData.planes, (p) => { return p._id.equals(o.plane) }),
                 tag: o.tag,
                 _id: o._id,
-                status: o.status
+                status: o.status,
             }
         })
 
+
         return {
             runways: runways,
-            terminal: terminal
+            terminal: terminal,
+            inBound: this.airportData.inBoundPlanes.map(o => o.toObject()),
+            isEmergency: !!this.emergencyCounter
         };
     }
 
@@ -497,8 +573,8 @@ class Airport {
     }
 
     //makes a request andd adds the request to our array called messages
-    addPlane(cb) {
-        this.messages.push(new Message(Message.TYPE.ADD_PLANE, { mission: Plane.MISSION_TYPE.LANDING, missionStartTime: new Date }))
+    addPlane(landingType) {
+        this.messages.push(new Message(Message.TYPE.ADD_PLANE, { mission: landingType, missionStartTime: new Date }))
     }
 
 

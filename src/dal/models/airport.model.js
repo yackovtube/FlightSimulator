@@ -11,7 +11,8 @@ const AirportSchema = mongoose.Schema({
     terminal: [TerminalSpotSchema],
     exitTerminalRunways: [{ type: Schema.Types.ObjectId, ref: 'Runway' }],
     planes: [{ type: Schema.Types.ObjectId, ref: 'Plane' }],
-    speed: Number
+    speed: Number,
+    inBoundPlanes: [{ type: Schema.Types.ObjectId, ref: 'Plane' }]
 });
 const Airport = mongoose.model('Airport', AirportSchema);
 
