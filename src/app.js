@@ -132,6 +132,11 @@ class App {
                         this.airport.setSpeed('fast')
                         console.log('change to fast speed')
                     })
+
+                    socket.on('addEmergencyLanding', ()=>{
+                        this.airport.addPlane(Plane.MISSION_TYPE.EMERGENCY_LANDING)
+                        console.log('Emergancey landing inbound')
+                    })
                 });
 
 

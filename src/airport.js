@@ -18,7 +18,11 @@ class Airport {
     //our constructor we start the runways 
     constructor(airportData) {
 
-        this.emergencyCounter = 0;//the amount of planes in emergancy landing state
+        this.emergencyCounter = null;//the amount of planes in emergancy landing state
+
+
+
+
         this.inProsses = false;
 
         this.airportData = airportData;
@@ -70,6 +74,7 @@ class Airport {
         }
 
 
+        this._initEmergencyCounter();
 
         //start terminal array 
         // this.terminal = this.airportData.terminal.toObject().map((planeId) => {
@@ -200,7 +205,7 @@ class Airport {
                             }
                         }
 
-                        if (canExitTerminal) {
+                        if (canExitTerminal && this.emergencyCounter < 1) {
 
                             let canExit = [];
 
@@ -233,8 +238,7 @@ class Airport {
                         }
 
                         //priorety to take off planes (not to jam runway 4)
-                        //priorety to take off planes (not to jam runway 4)
-                        if (this.runways[8].plane && this.runways[3].plane) {
+                        if (this.runways[8].plane && this.runways[3].plane && !this.emergencyCounter) {
                             _.remove(openRunways, (runway) => {
                                 return runway._id == this.runways[3]._id;
                             })
@@ -242,8 +246,12 @@ class Airport {
 
 
                         //lower emergancey counter
-                        if (this.runways[4].plane && this.runways[4].plane.mission == Plane.MISSION_TYPE.EMERGENCY_LANDING) {
-                            this.emergencyCounter--;
+                        //TODO: Move to _moveActoin 
+                        if (this.runways[4].plane) {
+                            let plane = _.find(this.airportData.planes, o => o._id.equals(this.runways[4].plane))
+                            if (plane.mission == Plane.MISSION_TYPE.EMERGENCY_LANDING) {
+                                this.emergencyCounter--;
+                            }
                         }
 
                         //Lockdown if there is a plane in emergancy landing state
@@ -256,22 +264,17 @@ class Airport {
                         //inBoundPlane logic
                         if (this.airportData.inBoundPlanes.length && !this.runways[1].plane) {
 
-                            _.orderBy(
+                            let orderInBoundPlanes = _.orderBy(
                                 this.airportData.inBoundPlanes.toObject(),
                                 [
                                     (o) => { return o.mission == Plane.MISSION_TYPE.EMERGENCY_LANDING ? 1 : 0; }, //Prioritez emergancey landing
                                     (o) => { return o.missionStartTime.getTime() } // second priorety by time in air
                                 ],
-                                ['asc', 'desc']
+                                ['desc', 'asc']
                             );
-                            let inBoundPlane = this.airportData.inBoundPlanes[0];
+                            let inBoundPlane = orderInBoundPlanes[0];
                             this.messages.push(new Message(Message.TYPE.IN_BOUND_PLANE, { runway: this.runways[1], plane: inBoundPlane._id }));
 
-
-                            //increase emergancey counter
-                            if (inBoundPlane.mission == Plane.MISSION_TYPE.EMERGENCY_LANDING) {
-                                this.emergencyCounter++;
-                            }
                         }
 
                         //run way logic
@@ -283,7 +286,7 @@ class Airport {
 
                                 let plane = _.find(this.airportData.planes, (o) => { return o._id.equals(fromRunway.plane) });
 
-                                if (fromRunway.type == Runway.TYPE.TERMINAL_ENTRANCE && plane.mission == Plane.MISSION_TYPE.LANDING) {
+                                if (fromRunway.type == Runway.TYPE.TERMINAL_ENTRANCE && (plane.mission == Plane.MISSION_TYPE.LANDING || plane.mission == Plane.MISSION_TYPE.EMERGENCY_LANDING)) {
                                     this.messages.push(new Message(Message.TYPE.MOVE_TO_TERMINAL, fromRunway));
                                 }
                                 else if (fromRunway.type == Runway.TYPE.RUNWAY && plane.mission == Plane.MISSION_TYPE.TAKEOFF) {
@@ -505,6 +508,11 @@ class Airport {
                     this.airportData.planes.push(_plane);
                     this.airportData.inBoundPlanes.push(_plane)
 
+                    //increase emergancey counter
+                    if (_plane.mission == Plane.MISSION_TYPE.EMERGENCY_LANDING) {
+                        this.emergencyCounter++;
+                    }
+
                     resolve();
                 })
                 .catch((err) => {
@@ -620,6 +628,20 @@ class Airport {
         })
     }
 
+    _initEmergencyCounter() {
+        let count = _.countBy(this.airportData.inBoundPlanes, o => o.mission)
+        count = count[Plane.MISSION_TYPE.EMERGENCY_LANDING] ? count[Plane.MISSION_TYPE.EMERGENCY_LANDING] : 0;
+        for (let i = 1; i <= 3; i++) {
+            let runway = this.runways[i];
+            if (runway.plane) {
+                let plane = _.find(this.airportData.planes, o => o._id.equals(runway.plane))
+                if (plane.mission == Plane.MISSION_TYPE.EMERGENCY_LANDING) {
+                    count++;
+                }
+            }
+        }
+        this.emergencyCounter = count;
+    }
 }
 
 module.exports = Airport;
