@@ -57,11 +57,6 @@ class Airport {
         for (let i in runwaysArray) {
             let runway = runwaysArray[i];
 
-            // Note: Populate connectedTo with map
-            // runway.conectedTo = runway.conectedTo.map((runwayId) => {
-            //     return _.find(airportData.runways, function (o) { return o._id.equals(runwayId); });
-            // });
-
             let populateConnectedTo = [];
             let conectedToArrayId = runway.conectedTo.toObject();
             for (let j in conectedToArrayId) {
@@ -77,9 +72,6 @@ class Airport {
         this._initEmergencyCounter();
 
         //start terminal array 
-        // this.terminal = this.airportData.terminal.toObject().map((planeId) => {
-        //     _.find(airportData.planes, (o) => { return o._id === planeId });
-        // });
         this.terminal = this.airportData.terminal;
 
 
@@ -246,7 +238,6 @@ class Airport {
 
 
                         //lower emergancey counter
-                        //TODO: Move to _moveActoin 
                         if (this.runways[4].plane) {
                             let plane = _.find(this.airportData.planes, o => o._id.equals(this.runways[4].plane))
                             if (plane.mission == Plane.MISSION_TYPE.EMERGENCY_LANDING) {
